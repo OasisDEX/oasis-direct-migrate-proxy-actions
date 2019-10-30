@@ -44,35 +44,44 @@ contract OtcInterface {
     function getPayAmount(address, address, uint) public returns (uint);
 }
 
-contract MockOasisDirectProxy {
-    address otc;
+contract MockOTC {
     address payToken; 
     uint payAmt; 
     address buyToken;
     uint minBuyAmt;
-    uint buyAmt;
 
-    constructor(address _otc, address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt, uint _buyAmt) public {
-        otc = _otc;
+    constructor(address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public {
         payToken = _payToken;
         payAmt = _payAmt;
         buyToken = _buyToken;
         minBuyAmt = _minBuyAmt;
-        buyAmt = _buyAmt;
     }
 
-    function sellAllAmount(address _otc, address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint) {
-        require(otc == _otc);
+    function sellAllAmount(address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint) {
         require(payToken == _payToken);
         require(payAmt == _payAmt);
         require(buyToken == _buyToken);
         require(minBuyAmt == _minBuyAmt);
 
-        return buyAmt;
+        TokenInterface(_payToken).transferFrom(msg.sender, address(this), _payAmt);
+        TokenInterface(_buyToken).transfer(msg.sender, _minBuyAmt);
+
+        return _minBuyAmt;
+    }
+
+    function buyAllAmount(address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint) {
+
+        return 0;
+    }
+}
+
+contract PassThroughOasisDirectProxy {
+    function sellAllAmount(address _otc, address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint) {
+        return MockOTC(_otc).sellAllAmount(_payToken, _payAmt, _buyToken, _minBuyAmt);
     }
 
     function buyAllAmount(address _otc, address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint payAmt) {
-
+        return MockOTC(_otc).buyAllAmount(_payToken, _payAmt, _buyToken, _minBuyAmt);
     }
 }
 
@@ -85,11 +94,10 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
     AuthGemJoin         saiJoin;
     Spotter             saiPrice;
     DSProxy             proxy;
-    MigrationProxyActions             migrationProxyActions;
-    address             otc;
     bytes32             cup;
     bytes32             cup2;
     OasisDirectMigrateProxyActions oasisDirectMigrateProxyActions;
+    PassThroughOasisDirectProxy passThroughOasisDirectProxy;
     DSToken dgd;
 
     function setUp() public {
@@ -100,10 +108,6 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
 
         // Deploy SCD
         deploySai();
-
-        // not existing otc
-        otc = address(0);
-
 
         // Create CDP Manager
         manager = new DssCdpManager(address(vat));
@@ -127,7 +131,6 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
         // Create Proxy Factory, proxy and migration proxy actions
         DSProxyFactory factory = new DSProxyFactory();
         proxy = DSProxy(factory.build());
-        migrationProxyActions = new MigrationProxyActions();
 
         // Deposit, approve and join 20 ETH == 20 SKR
         weth.deposit.value(20 ether)();
@@ -149,8 +152,10 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
         saiJoin.rely(address(migration));
 
         oasisDirectMigrateProxyActions = new OasisDirectMigrateProxyActions();
+        passThroughOasisDirectProxy = new PassThroughOasisDirectProxy();
 
         dgd = new DSToken("DGD");
+        dgd.mint(0.1 ether);
     }
 
     function deploySai() public {
@@ -210,27 +215,37 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
         uint256 amount = 100 ether;
         uint256 minAmount = 0.1 ether;
 
-        MockOasisDirectProxy oasisDirectProxy = new MockOasisDirectProxy(otc, address(dai), amount, address(dgd), minAmount, amount);
+        MockOTC mockOTC = new MockOTC(address(dai), amount, address(dgd), minAmount);
+        dgd.transfer(address(mockOTC), minAmount);
 
         assertEq(sai.balanceOf(address(this)), amount);
         assertEq(dai.balanceOf(address(this)), 0);
-
-
+        
         sai.approve(address(oasisDirectMigrateProxyActions), amount);
         
         oasisDirectMigrateProxyActions.sellAllAmountAndMigrateSai(
-            address(migrationProxyActions),
-            address(migration),
-            address(oasisDirectProxy),
+            address(mockOTC),
             address(dai),
-            address(otc),
             amount,
             address(dgd),
-            minAmount
+            minAmount,
+            address(migration),
+            address(passThroughOasisDirectProxy)
         );
 
-        assertEq(sai.balanceOf(address(this)), 0 ether);
-        // assertEq(dai.balanceOf(address(this)), 0 ether);
-        // introduce mock OTC not mock OasisDirectProxy
+        // sender should have no dai, sai and at least min requested DGD
+        assertEq(sai.balanceOf(address(this)), 0);
+        assertEq(dai.balanceOf(address(this)), 0);
+        assertEq(dgd.balanceOf(address(this)), minAmount);
+
+        // no tokens at proxy contract
+        assertEq(sai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+        assertEq(dai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+        assertEq(dgd.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+
+        // OTC should get DAI (mocked impl)
+        assertEq(sai.balanceOf(address(mockOTC)), 0);
+        assertEq(dai.balanceOf(address(mockOTC)), amount);
+        assertEq(dgd.balanceOf(address(mockOTC)), 0);
     }
 }
