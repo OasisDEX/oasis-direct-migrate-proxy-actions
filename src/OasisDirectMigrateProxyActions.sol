@@ -26,11 +26,16 @@ contract OasisDirectMigrateProxyActions {
     address migrationProxyActions, address scdMcdMigration, address oasisDirectProxy, 
     address daiToken, address otc, uint payAmt, address buyToken, uint minBuyAmt
   ) public {
-    bytes memory data = abi.encodeWithSelector(bytes4(keccak256("swapSaiToDai(address,uint256)")), address(scdMcdMigration), payAmt);
-    (bool success,) = migrationProxyActions.delegatecall(data);
+    (bool success,) = migrationProxyActions.delegatecall(
+      abi.encodeWithSelector(bytes4(keccak256("swapSaiToDai(address,uint256)")), address(scdMcdMigration), payAmt)
+    );
     require(success);
     
-    TokenInterface(daiToken).approve(address(otc), uint256(-1));
-    OasisDirectProxy(oasisDirectProxy).sellAllAmount(otc, daiToken, payAmt, buyToken, minBuyAmt);
+    TokenInterface(daiToken).approve(otc, uint256(-1));
+
+    (bool success2,) = oasisDirectProxy.delegatecall(
+      abi.encodeWithSelector(bytes4(keccak256("sellAllAmount(address,address,uint256,address,uint256)")), otc, daiToken, payAmt, buyToken, minBuyAmt)
+    );
+    require(success2);
   }
 }
