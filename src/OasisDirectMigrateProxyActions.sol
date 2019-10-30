@@ -38,14 +38,16 @@ contract OasisDirectMigrateProxyActions {
     
     TokenInterface(daiToken).approve(otc, uint256(-1));
 
-    (bool success, bytes memory daiAmtBytes) = oasisDirectProxy.delegatecall(
+    (bool success, bytes memory usedDaiAmtBytes) = oasisDirectProxy.delegatecall(
       abi.encodeWithSelector(bytes4(keccak256("buyAllAmount(address,address,uint256,address,uint256)")), otc, buyToken, buyAmt, daiToken, maxPayAmt)
     );
     require(success);
-    uint256 daiAmt = abi.decode(daiAmtBytes, (uint));
-      // this will send back any leftover dai
-    if (daiAmt > 0) {
-      swapDaiToSai(scdMcdMigration, daiAmt);
+    uint256 usedDaiAmt = abi.decode(usedDaiAmtBytes, (uint));
+    uint256 unusedDaiAmt = maxPayAmt - usedDaiAmt;
+    // this will send back any leftover dai
+    // @todo use min?
+    if (unusedDaiAmt > 0) {
+      swapDaiToSai(scdMcdMigration, unusedDaiAmt);
     }
 
     TokenInterface(buyToken).transfer(msg.sender, buyAmt);

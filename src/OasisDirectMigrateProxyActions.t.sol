@@ -49,12 +49,16 @@ contract MockOTC {
     uint payAmt; 
     address buyToken;
     uint minBuyAmt;
+    bool selling;
+    uint buyAmt;
 
-    constructor(address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public {
+    constructor(address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt, bool _selling, uint _buyAmt) public {
         payToken = _payToken;
         payAmt = _payAmt;
         buyToken = _buyToken;
         minBuyAmt = _minBuyAmt;
+        selling = _selling;
+        buyAmt = _buyAmt;
     }
 
     function sellAllAmount(address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint) {
@@ -62,6 +66,7 @@ contract MockOTC {
         require(payAmt == _payAmt);
         require(buyToken == _buyToken);
         require(minBuyAmt == _minBuyAmt);
+        require(selling == true);
 
         TokenInterface(_payToken).transferFrom(msg.sender, address(this), _payAmt);
         TokenInterface(_buyToken).transfer(msg.sender, _minBuyAmt);
@@ -69,9 +74,17 @@ contract MockOTC {
         return _minBuyAmt;
     }
 
-    function buyAllAmount(address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint) {
+    function buyAllAmount(address _buyToken, uint _buyAmt, address _payToken, uint _maxPayAmt) public returns (uint) {
+        require(buyToken == _buyToken);
+        require(buyAmt == _buyAmt);
+        require(payToken == _payToken);
+        require(minBuyAmt == _maxPayAmt);
+        require(selling == false);
 
-        return 0;
+        TokenInterface(_payToken).transferFrom(msg.sender, address(this), _maxPayAmt);
+        TokenInterface(_buyToken).transfer(msg.sender, _buyAmt);
+
+        return _maxPayAmt;
     }
 }
 
@@ -80,8 +93,8 @@ contract PassThroughOasisDirectProxy {
         return MockOTC(_otc).sellAllAmount(_payToken, _payAmt, _buyToken, _minBuyAmt);
     }
 
-    function buyAllAmount(address _otc, address _payToken, uint _payAmt, address _buyToken, uint _minBuyAmt) public returns (uint payAmt) {
-        return MockOTC(_otc).buyAllAmount(_payToken, _payAmt, _buyToken, _minBuyAmt);
+    function buyAllAmount(address otc, address buyToken, uint buyAmt, address payToken, uint maxPayAmt) public returns (uint payAmt) {
+        return MockOTC(otc).buyAllAmount(buyToken, buyAmt, payToken, maxPayAmt);
     }
 }
 
@@ -211,11 +224,11 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
         migration.swapSaiToDai(amount);
     }
 
-    function testDirectMigrate() public {
+    function testSellAllAmountAndMigrateSai() public {
         uint256 amount = 100 ether;
         uint256 minAmount = 0.1 ether;
 
-        MockOTC mockOTC = new MockOTC(address(dai), amount, address(dgd), minAmount);
+        MockOTC mockOTC = new MockOTC(address(dai), amount, address(dgd), minAmount, true, 0);
         dgd.transfer(address(mockOTC), minAmount);
 
         assertEq(sai.balanceOf(address(this)), amount);
@@ -246,6 +259,44 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
         // OTC should get DAI (mocked impl)
         assertEq(sai.balanceOf(address(mockOTC)), 0);
         assertEq(dai.balanceOf(address(mockOTC)), amount);
+        assertEq(dgd.balanceOf(address(mockOTC)), 0);
+    }
+
+    function testBuyAllAmountAndMigrateSai() public {
+        uint256 amount = 0.1 ether;
+        uint256 maxAmount = 100 ether;
+
+        MockOTC mockOTC = new MockOTC(address(dai), amount, address(dgd), maxAmount, false, amount);
+        dgd.transfer(address(mockOTC), amount);
+
+        assertEq(sai.balanceOf(address(this)), maxAmount);
+        assertEq(dai.balanceOf(address(this)), 0);
+        
+        sai.approve(address(oasisDirectMigrateProxyActions), maxAmount);
+        
+        oasisDirectMigrateProxyActions.buyAllAmountAndMigrateSai(
+            address(mockOTC),
+            address(dgd),
+            amount,
+            address(dai),
+            maxAmount,
+            address(migration),
+            address(passThroughOasisDirectProxy)
+        );
+
+        // sender should have no dai, sai and at least min requested DGD
+        assertEq(sai.balanceOf(address(this)), 0);
+        assertEq(dai.balanceOf(address(this)), 0);
+        assertEq(dgd.balanceOf(address(this)), amount);
+
+        // no tokens at proxy contract
+        assertEq(sai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+        assertEq(dai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+        assertEq(dgd.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+
+        // OTC should get DAI (mocked impl)
+        assertEq(sai.balanceOf(address(mockOTC)), 0);
+        assertEq(dai.balanceOf(address(mockOTC)), maxAmount);
         assertEq(dgd.balanceOf(address(mockOTC)), 0);
     }
 }
