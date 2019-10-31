@@ -25,7 +25,7 @@ contract OasisDirectMigrateProxyActions is DSMath {
 
   function sellAllAmountBuyEthAndMigrateSai(
     address otc, address daiToken, uint payAmt, address wethToken, uint minBuyAmt,
-    address scdMcdMigration, address oasisDirectProxy
+    address scdMcdMigration
   ) public returns (uint wethAmt) {
     swapSaiToDai(address(scdMcdMigration), payAmt);
     
@@ -50,15 +50,15 @@ contract OasisDirectMigrateProxyActions is DSMath {
   }
 
 // @todo remove approvals 
-  function buyAllAmountBuyEth(
+  function buyAllAmountBuyEthAndMigrateSai(
     address otc, address wethToken, uint wethAmt, address daiToken, uint maxPayAmt,
-    address scdMcdMigration, address oasisDirectProxy
+    address scdMcdMigration
   ) public returns (uint payAmt) {
     swapSaiToDai(scdMcdMigration, maxPayAmt);
     
     TokenInterface(daiToken).approve(otc, uint256(-1));
 
-    uint256 usedDaiAmt = buyAllAmount(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), maxPayAmt);
+    uint256 usedDaiAmt = buyAllAmountBuyEth(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), maxPayAmt);
 
     uint256 unusedDaiAmt = maxPayAmt - usedDaiAmt;
     // this will send back any leftover dai
@@ -137,5 +137,9 @@ contract OasisDirectMigrateProxyActions is DSMath {
       
       (bool success,) = msg.sender.call.value(wethAmt)("");
       require(success);
+  }
+
+  // required to be able to interact with ether
+  function() external payable {
   }
 }
