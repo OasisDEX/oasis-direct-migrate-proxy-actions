@@ -87,6 +87,11 @@ contract MockOTC {
 
         return _maxPayAmt;
     }
+
+    function getPayAmount(address payToken, address buyToken, uint buyAmt) public returns (uint) {
+        // @todo missing asserts
+        return minBuyAmt;
+    }
 }
 
 contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
@@ -233,8 +238,7 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
             amount,
             address(dgd),
             minAmount,
-            address(migration),
-            address(oasisDirectProxy)
+            address(migration)
         );
 
         // sender should have no dai, sai and at least min requested DGD
@@ -254,41 +258,40 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
     }
 
     // @todo: missing test for non-zero unusedDaiAmt
-    // function testBuyAllAmountAndMigrateSai() public {
-    //     uint256 amount = 0.1 ether;
-    //     uint256 maxAmount = 100 ether;
+    function testBuyAllAmountAndMigrateSai() public {
+        uint256 amount = 0.1 ether;
+        uint256 maxAmount = 100 ether;
 
-    //     MockOTC mockOTC = new MockOTC(address(dai), amount, address(dgd), maxAmount, false, amount);
-    //     dgd.transfer(address(mockOTC), amount);
+        MockOTC mockOTC = new MockOTC(address(dai), amount, address(dgd), maxAmount, false, amount);
+        dgd.transfer(address(mockOTC), amount);
 
-    //     assertEq(sai.balanceOf(address(this)), maxAmount);
-    //     assertEq(dai.balanceOf(address(this)), 0);
+        assertEq(sai.balanceOf(address(this)), maxAmount);
+        assertEq(dai.balanceOf(address(this)), 0);
         
-    //     sai.approve(address(oasisDirectMigrateProxyActions), maxAmount);
+        sai.approve(address(oasisDirectMigrateProxyActions), maxAmount);
         
-    //     oasisDirectMigrateProxyActions.buyAllAmountAndMigrateSai(
-    //         address(mockOTC),
-    //         address(dgd),
-    //         amount,
-    //         address(dai),
-    //         maxAmount,
-    //         address(migration),
-    //         address(oasisDirectProxy)
-    //     );
+        oasisDirectMigrateProxyActions.buyAllAmountAndMigrateSai(
+            address(mockOTC),
+            address(dgd),
+            amount,
+            address(dai),
+            maxAmount,
+            address(migration)
+        );
 
-    //     // sender should have no dai, sai and at least min requested DGD
-    //     assertEq(sai.balanceOf(address(this)), 0);
-    //     assertEq(dai.balanceOf(address(this)), 0);
-    //     assertEq(dgd.balanceOf(address(this)), amount);
+        // sender should have no dai, sai and at least min requested DGD
+        assertEq(sai.balanceOf(address(this)), 0);
+        assertEq(dai.balanceOf(address(this)), 0);
+        assertEq(dgd.balanceOf(address(this)), amount);
 
-    //     // no tokens at proxy contract
-    //     assertEq(sai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
-    //     assertEq(dai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
-    //     assertEq(dgd.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+        // no tokens at proxy contract
+        assertEq(sai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+        assertEq(dai.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
+        assertEq(dgd.balanceOf(address(oasisDirectMigrateProxyActions)), 0);
 
-    //     // OTC should get DAI (mocked impl)
-    //     assertEq(sai.balanceOf(address(mockOTC)), 0);
-    //     assertEq(dai.balanceOf(address(mockOTC)), maxAmount);
-    //     assertEq(dgd.balanceOf(address(mockOTC)), 0);
-    // }
+        // OTC should get DAI (mocked impl)
+        assertEq(sai.balanceOf(address(mockOTC)), 0);
+        assertEq(dai.balanceOf(address(mockOTC)), maxAmount);
+        assertEq(dgd.balanceOf(address(mockOTC)), 0);
+    }
 }
