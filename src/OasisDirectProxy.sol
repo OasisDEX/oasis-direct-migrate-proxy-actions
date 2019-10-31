@@ -35,7 +35,8 @@ contract OasisDirectProxy is DSMath {
         require(buyToken.transfer(msg.sender, buyAmt));
     }
 
-    function sellAllAmountBuyEth(OtcInterface otc, TokenInterface payToken, uint payAmt, TokenInterface wethToken, uint minBuyAmt) public returns (uint wethAmt) {
+    function sellAllAmountBuyEth(OtcInterface otc, TokenInterface payToken, uint payAmt, TokenInterface wethToken, uint minBuyAmt
+    ) public returns (uint wethAmt) {
         require(payToken.transferFrom(msg.sender, address(this), payAmt));
         if (payToken.allowance(address(this), address(otc)) < payAmt) {
             payToken.approve(address(otc), uint(-1));

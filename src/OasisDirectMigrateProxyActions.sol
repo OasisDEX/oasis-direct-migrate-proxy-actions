@@ -24,23 +24,15 @@ contract OasisDirectMigrateProxyActions is DSMath {
   }
 
   function sellAllAmountBuyEthAndMigrateSai(
-    address otc, address payToken, uint payAmt, address wethToken, uint minBuyAmt,
+    address otc, address daiToken, uint payAmt, address wethToken, uint minBuyAmt,
     address scdMcdMigration, address oasisDirectProxy
   ) public returns (uint wethAmt) {
-    // swapSaiToDai(address(scdMcdMigration), payAmt);
+    swapSaiToDai(address(scdMcdMigration), payAmt);
     
-    // TokenInterface(daiToken).approve(otc, uint256(-1));
+    TokenInterface(daiToken).approve(address(otc), uint256(-1));
 
-    // (bool success, bytes memory boughtAmtBytes) = oasisDirectProxy.delegatecall(
-    //   abi.encodeWithSelector(bytes4(keccak256("sellAllAmountEth(address,address,uint256,address,uint256)")), otc, daiToken, payAmt, buyToken, minBuyAmt)
-    // );
-    // require(success);
-    // uint256 boughtAmt = abi.decode(boughtAmtBytes, (uint));
-
-    // // pass ether
-    // require(msg.sender.call.value(wethAmt)());
+    sellAllAmountBuyEth(OtcInterface(otc), TokenInterface(daiToken), payAmt, TokenInterface(wethToken), minBuyAmt);
   }
-
 
   function buyAllAmountAndMigrateSai(
     address otc, address buyToken, uint buyAmt, address daiToken, uint maxPayAmt,
@@ -48,8 +40,6 @@ contract OasisDirectMigrateProxyActions is DSMath {
   ) public {
     swapSaiToDai(scdMcdMigration, maxPayAmt);
 
-    emit log_named_uint("DAI:", TokenInterface(daiToken).balanceOf(address(this)));
-    
     uint256 usedDaiAmt = buyAllAmount(OtcInterface(otc), TokenInterface(buyToken), buyAmt, TokenInterface(daiToken), maxPayAmt);
     uint256 unusedDaiAmt = maxPayAmt - usedDaiAmt;
     // this will send back any leftover dai
@@ -58,31 +48,24 @@ contract OasisDirectMigrateProxyActions is DSMath {
       swapDaiToSai(scdMcdMigration, unusedDaiAmt);
     }
   }
-  // @todo real proxy impl
 
-// @todo reduce repetition
+// @todo remove approvals 
   function buyAllAmountBuyEth(
-    address otc, address wethToken, uint wethAmt, address payToken, uint maxPayAmt,
+    address otc, address wethToken, uint wethAmt, address daiToken, uint maxPayAmt,
     address scdMcdMigration, address oasisDirectProxy
   ) public returns (uint payAmt) {
-    // swapSaiToDai(scdMcdMigration, maxPayAmt);
+    swapSaiToDai(scdMcdMigration, maxPayAmt);
     
-    // TokenInterface(daiToken).approve(otc, uint256(-1));
+    TokenInterface(daiToken).approve(otc, uint256(-1));
 
-    // (bool success, bytes memory usedDaiAmtBytes) = oasisDirectProxy.delegatecall(
-    //   abi.encodeWithSelector(bytes4(keccak256("buyAllAmount(address,address,uint256,address,uint256)")), otc, buyToken, buyAmt, daiToken, maxPayAmt)
-    // );
-    // require(success);
-    // uint256 usedDaiAmt = abi.decode(usedDaiAmtBytes, (uint));
-    // uint256 unusedDaiAmt = maxPayAmt - usedDaiAmt;
-    // // this will send back any leftover dai
-    // // @todo use min?
-    // if (unusedDaiAmt > 0) {
-    //   swapDaiToSai(scdMcdMigration, unusedDaiAmt);
-    // }
+    uint256 usedDaiAmt = buyAllAmount(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), maxPayAmt);
 
-    // // pass ether
-    // require(msg.sender.call.value(wethAmt)());
+    uint256 unusedDaiAmt = maxPayAmt - usedDaiAmt;
+    // this will send back any leftover dai
+    // @todo use min?
+    if (unusedDaiAmt > 0) {
+      swapDaiToSai(scdMcdMigration, unusedDaiAmt);
+    }
   }
 
   function swapSaiToDai(
@@ -128,5 +111,31 @@ contract OasisDirectMigrateProxyActions is DSMath {
     }
     payAmt = otc.buyAllAmount(address(buyToken), buyAmt, address(payToken), payAmtNow);
     require(buyToken.transfer(msg.sender, min(buyAmt, buyToken.balanceOf(address(this))))); // To avoid rounding issues we check the minimum value
+  }
+
+  function sellAllAmountBuyEth(OtcInterface otc, TokenInterface payToken, uint payAmt, TokenInterface wethToken, uint minBuyAmt
+    ) private returns (uint wethAmt) {
+      if (payToken.allowance(address(this), address(otc)) < payAmt) {
+          payToken.approve(address(otc), uint(-1));
+      }
+      wethAmt = otc.sellAllAmount(address(payToken), payAmt, address(wethToken), minBuyAmt);
+      withdrawAndSend(wethToken, wethAmt);
+  }
+
+  function buyAllAmountBuyEth(OtcInterface otc, TokenInterface wethToken, uint wethAmt, TokenInterface payToken, uint maxPayAmt) public returns (uint payAmt) {
+    uint payAmtNow = otc.getPayAmount(address(payToken), address(wethToken), wethAmt);
+    require(payAmtNow <= maxPayAmt);
+    if (payToken.allowance(address(this), address(otc)) < payAmtNow) {
+        payToken.approve(address(otc), uint(-1));
     }
+    payAmt = otc.buyAllAmount(address(wethToken), wethAmt, address(payToken), payAmtNow);
+    withdrawAndSend(wethToken, wethAmt);
+  }
+
+  function withdrawAndSend(TokenInterface wethToken, uint wethAmt) private {
+      wethToken.withdraw(wethAmt);
+      
+      (bool success,) = msg.sender.call.value(wethAmt)("");
+      require(success);
+  }
 }
