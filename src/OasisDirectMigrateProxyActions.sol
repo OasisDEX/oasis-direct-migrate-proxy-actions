@@ -1,7 +1,7 @@
 pragma solidity 0.5.11;
 
 import {ScdMcdMigration} from "scd-mcd-migration/ScdMcdMigration.sol";
-import { GemLike, JoinLike, SaiTubLike, TokenInterface } from "./Interfaces.sol";
+import { GemLike, JoinLike, SaiTubLike, TokenInterface, OtcInterface } from "./Interfaces.sol";
 
 contract OasisDirectMigrateProxyActions {
   event logs                   (bytes);
@@ -18,17 +18,33 @@ contract OasisDirectMigrateProxyActions {
     address scdMcdMigration, address oasisDirectProxy
   ) public {
     swapSaiToDai(address(scdMcdMigration), payAmt);
+
+    sellAllAmount(otc, daiToken, payAmt, buyToken, minBuyAmt);
     
-    TokenInterface(daiToken).approve(otc, uint256(-1));
-
-    (bool success, bytes memory boughtAmtBytes) = oasisDirectProxy.delegatecall(
-      abi.encodeWithSelector(bytes4(keccak256("sellAllAmount(address,address,uint256,address,uint256)")), otc, daiToken, payAmt, buyToken, minBuyAmt)
-    );
-    require(success);
-    uint256 boughtAmt = abi.decode(boughtAmtBytes, (uint));
-
-    TokenInterface(buyToken).transfer(msg.sender, boughtAmt);
+    // (bool success, bytes memory boughtAmtBytes) = oasisDirectProxy.delegatecall(
+    //   abi.encodeWithSelector(bytes4(keccak256("sellAllAmount(address,address,uint256,address,uint256)")), otc, daiToken, payAmt, buyToken, minBuyAmt)
+    // );
+    // require(success);
   }
+
+  function sellAllAmountBuyEthAndMigrateSai(
+    address otc, address payToken, uint payAmt, address wethToken, uint minBuyAmt,
+    address scdMcdMigration, address oasisDirectProxy
+  ) public returns (uint wethAmt) {
+    // swapSaiToDai(address(scdMcdMigration), payAmt);
+    
+    // TokenInterface(daiToken).approve(otc, uint256(-1));
+
+    // (bool success, bytes memory boughtAmtBytes) = oasisDirectProxy.delegatecall(
+    //   abi.encodeWithSelector(bytes4(keccak256("sellAllAmountEth(address,address,uint256,address,uint256)")), otc, daiToken, payAmt, buyToken, minBuyAmt)
+    // );
+    // require(success);
+    // uint256 boughtAmt = abi.decode(boughtAmtBytes, (uint));
+
+    // // pass ether
+    // require(msg.sender.call.value(wethAmt)());
+  }
+
 
   function buyAllAmountAndMigrateSai(
     address otc, address buyToken, uint buyAmt, address daiToken, uint maxPayAmt,
@@ -51,6 +67,32 @@ contract OasisDirectMigrateProxyActions {
     }
 
     TokenInterface(buyToken).transfer(msg.sender, buyAmt);
+  }
+  // @todo real proxy impl
+
+// @todo reduce repetition
+  function buyAllAmountBuyEth(
+    address otc, address wethToken, uint wethAmt, address payToken, uint maxPayAmt,
+    address scdMcdMigration, address oasisDirectProxy
+  ) public returns (uint payAmt) {
+    // swapSaiToDai(scdMcdMigration, maxPayAmt);
+    
+    // TokenInterface(daiToken).approve(otc, uint256(-1));
+
+    // (bool success, bytes memory usedDaiAmtBytes) = oasisDirectProxy.delegatecall(
+    //   abi.encodeWithSelector(bytes4(keccak256("buyAllAmount(address,address,uint256,address,uint256)")), otc, buyToken, buyAmt, daiToken, maxPayAmt)
+    // );
+    // require(success);
+    // uint256 usedDaiAmt = abi.decode(usedDaiAmtBytes, (uint));
+    // uint256 unusedDaiAmt = maxPayAmt - usedDaiAmt;
+    // // this will send back any leftover dai
+    // // @todo use min?
+    // if (unusedDaiAmt > 0) {
+    //   swapDaiToSai(scdMcdMigration, unusedDaiAmt);
+    // }
+
+    // // pass ether
+    // require(msg.sender.call.value(wethAmt)());
   }
 
   function swapSaiToDai(
@@ -79,4 +121,12 @@ contract OasisDirectMigrateProxyActions {
       ScdMcdMigration(scdMcdMigration).swapDaiToSai(wad);
       sai.transfer(msg.sender, wad);
   }
+
+  function sellAllAmount(address otc, address payToken, uint payAmt, address buyToken, uint minBuyAmt) private returns (uint buyAmt) {
+        if (TokenInterface(payToken).allowance(address(this), address(otc)) < payAmt) {
+            TokenInterface(payToken).approve(address(otc), uint(-1));
+        }
+        buyAmt = OtcInterface(otc).sellAllAmount(payToken, payAmt, buyToken, minBuyAmt);
+        require(TokenInterface(buyToken).transfer(msg.sender, buyAmt));
+    }
 }
