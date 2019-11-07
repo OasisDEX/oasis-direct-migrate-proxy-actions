@@ -8,50 +8,50 @@ contract OasisDirectMigrateProxyActions is DSMath {
   function sellAllAmountAndMigrateSai(
     address otc, address daiToken, uint payAmt, address buyToken, uint minBuyAmt,
     address scdMcdMigration
-  ) public {
+  ) public returns (uint) {
     swapSaiToDai(scdMcdMigration, payAmt);
 
-    sellAllAmount(otc, daiToken, payAmt, buyToken, minBuyAmt);
+    return sellAllAmount(otc, daiToken, payAmt, buyToken, minBuyAmt);
   }
 
   function sellAllAmountBuyEthAndMigrateSai(
     address otc, address daiToken, uint payAmt, address wethToken, uint minBuyAmt,
     address scdMcdMigration
-  ) public returns (uint wethAmt) {
+  ) public returns (uint) {
     swapSaiToDai(address(scdMcdMigration), payAmt);
     
-    TokenInterface(daiToken).approve(address(otc), uint256(-1));
-
-    sellAllAmountBuyEth(OtcInterface(otc), TokenInterface(daiToken), payAmt, TokenInterface(wethToken), minBuyAmt);
+    return sellAllAmountBuyEth(OtcInterface(otc), TokenInterface(daiToken), payAmt, TokenInterface(wethToken), minBuyAmt);
   }
 
   function buyAllAmountAndMigrateSai(
     address otc, address buyToken, uint buyAmt, address daiToken, uint maxPayAmt,
     address scdMcdMigration
-  ) public {
+  ) public returns (uint) {
     uint payAmtNow = OtcInterface(otc).getPayAmount(daiToken, buyToken, buyAmt);
     require(payAmtNow <= maxPayAmt);
 
     swapSaiToDai(scdMcdMigration, payAmtNow);
 
-    buyAllAmount(OtcInterface(otc), TokenInterface(buyToken), buyAmt, TokenInterface(daiToken), payAmtNow);
+    return buyAllAmount(OtcInterface(otc), TokenInterface(buyToken), buyAmt, TokenInterface(daiToken), payAmtNow);
   }
 
   function buyAllAmountBuyEthAndMigrateSai(
     address otc, address wethToken, uint wethAmt, address daiToken, uint maxPayAmt,
     address scdMcdMigration
-  ) public returns (uint payAmt) {
+  ) public returns (uint) {
     uint payAmtNow = OtcInterface(otc).getPayAmount(daiToken, wethToken, wethAmt);
     require(payAmtNow <= maxPayAmt);
 
     swapSaiToDai(scdMcdMigration, payAmtNow);
     
-    buyAllAmountBuyEth(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), payAmtNow);
+    return buyAllAmountBuyEth(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), payAmtNow);
   }
 
+  // private methods
+
   function swapSaiToDai(
-        address scdMcdMigration,    // Migration contract address
-        uint wad                            // Amount to swap
+        address scdMcdMigration,
+        uint wad
   ) private {
       GemLike sai = SaiTubLike(address(ScdMcdMigration(scdMcdMigration).tub())).sai();
       GemLike dai = JoinLike(address(ScdMcdMigration(scdMcdMigration).daiJoin())).dai();
@@ -103,6 +103,5 @@ contract OasisDirectMigrateProxyActions is DSMath {
   }
 
   // required to be able to interact with ether
-  function() external payable {
-  }
+  function() external payable { }
 }
