@@ -19,7 +19,7 @@ contract OasisDirectMigrateProxyActions is DSMath {
     address scdMcdMigration
   ) public returns (uint wethAmt) {
     swapSaiToDai(address(scdMcdMigration), payAmt);
-    
+
     TokenInterface(daiToken).approve(address(otc), uint256(-1));
 
     sellAllAmountBuyEth(OtcInterface(otc), TokenInterface(daiToken), payAmt, TokenInterface(wethToken), minBuyAmt);
@@ -45,7 +45,7 @@ contract OasisDirectMigrateProxyActions is DSMath {
     require(payAmtNow <= maxPayAmt);
 
     swapSaiToDai(scdMcdMigration, payAmtNow);
-    
+
     buyAllAmountBuyEth(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), payAmtNow);
   }
 
@@ -53,7 +53,7 @@ contract OasisDirectMigrateProxyActions is DSMath {
         address scdMcdMigration,    // Migration contract address
         uint wad                            // Amount to swap
   ) private {
-      GemLike sai = SaiTubLike(address(ScdMcdMigration(scdMcdMigration).tub())).sai();
+      GemLike sai = JoinLike(address(ScdMcdMigration(scdMcdMigration).saiJoin())).gem();
       GemLike dai = JoinLike(address(ScdMcdMigration(scdMcdMigration).daiJoin())).dai();
       sai.transferFrom(msg.sender, address(this), wad);
       if (sai.allowance(address(this), scdMcdMigration) < wad) {
@@ -97,7 +97,7 @@ contract OasisDirectMigrateProxyActions is DSMath {
 
   function withdrawAndSend(TokenInterface wethToken, uint wethAmt) private {
       wethToken.withdraw(wethAmt);
-      
+
       (bool success,) = msg.sender.call.value(wethAmt)("");
       require(success);
   }
