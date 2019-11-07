@@ -6,45 +6,45 @@ import "ds-math/math.sol";
 
 contract OasisDirectMigrateProxyActions is DSMath {
   function sellAllAmountAndMigrateSai(
-    address otc, address daiToken, uint payAmt, address buyToken, uint minBuyAmt,
+    address otc, address daiToken, uint daiAmt, address buyToken, uint minBuyAmt,
     address scdMcdMigration
   ) public returns (uint) {
-    swapSaiToDai(scdMcdMigration, payAmt);
+    swapSaiToDai(scdMcdMigration, daiAmt);
 
-    return sellAllAmount(otc, daiToken, payAmt, buyToken, minBuyAmt);
+    return sellAllAmount(otc, daiToken, daiAmt, buyToken, minBuyAmt);
   }
 
   function sellAllAmountBuyEthAndMigrateSai(
-    address otc, address daiToken, uint payAmt, address wethToken, uint minBuyAmt,
+    address otc, address daiToken, uint daiAmt, address wethToken, uint minBuyAmt,
     address scdMcdMigration
   ) public returns (uint) {
-    swapSaiToDai(address(scdMcdMigration), payAmt);
+    swapSaiToDai(address(scdMcdMigration), daiAmt);
     
-    return sellAllAmountBuyEth(OtcInterface(otc), TokenInterface(daiToken), payAmt, TokenInterface(wethToken), minBuyAmt);
+    return sellAllAmountBuyEth(OtcInterface(otc), TokenInterface(daiToken), daiAmt, TokenInterface(wethToken), minBuyAmt);
   }
 
   function buyAllAmountAndMigrateSai(
-    address otc, address buyToken, uint buyAmt, address daiToken, uint maxPayAmt,
+    address otc, address buyToken, uint buyAmt, address daiToken, uint maxDaiAmt,
     address scdMcdMigration
   ) public returns (uint) {
-    uint payAmtNow = OtcInterface(otc).getPayAmount(daiToken, buyToken, buyAmt);
-    require(payAmtNow <= maxPayAmt);
+    uint daiAmtNow = OtcInterface(otc).getPayAmount(daiToken, buyToken, buyAmt);
+    require(daiAmtNow <= maxDaiAmt);
 
-    swapSaiToDai(scdMcdMigration, payAmtNow);
+    swapSaiToDai(scdMcdMigration, daiAmtNow);
 
-    return buyAllAmount(OtcInterface(otc), TokenInterface(buyToken), buyAmt, TokenInterface(daiToken), payAmtNow);
+    return buyAllAmount(OtcInterface(otc), TokenInterface(buyToken), buyAmt, TokenInterface(daiToken), daiAmtNow);
   }
 
   function buyAllAmountBuyEthAndMigrateSai(
-    address otc, address wethToken, uint wethAmt, address daiToken, uint maxPayAmt,
+    address otc, address wethToken, uint wethAmt, address daiToken, uint maxDaiAmt,
     address scdMcdMigration
   ) public returns (uint) {
-    uint payAmtNow = OtcInterface(otc).getPayAmount(daiToken, wethToken, wethAmt);
-    require(payAmtNow <= maxPayAmt);
+    uint daiAmtNow = OtcInterface(otc).getPayAmount(daiToken, wethToken, wethAmt);
+    require(daiAmtNow <= maxDaiAmt);
 
-    swapSaiToDai(scdMcdMigration, payAmtNow);
+    swapSaiToDai(scdMcdMigration, daiAmtNow);
     
-    return buyAllAmountBuyEth(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), payAmtNow);
+    return buyAllAmountBuyEth(OtcInterface(otc), TokenInterface(wethToken), wethAmt, TokenInterface(daiToken), daiAmtNow);
   }
 
   // private methods
