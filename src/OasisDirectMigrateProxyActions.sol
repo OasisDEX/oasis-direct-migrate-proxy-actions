@@ -6,12 +6,12 @@ import "ds-math/math.sol";
 contract OasisDirectMigrateProxyActions is DSMath {
     function sellAllAmountAndMigrateSai(
         address otc,
+        address daiToken,
         uint daiAmt,
         address buyToken,
         uint minBuyAmt,
         address scdMcdMigration
     ) public returns (uint buyAmt) {
-        address daiToken = getDaiToken(scdMcdMigration);
         swapSaiToDai(scdMcdMigration, daiAmt);
 
         if (GemLike(daiToken).allowance(address(this), otc) < daiAmt) {
@@ -23,12 +23,12 @@ contract OasisDirectMigrateProxyActions is DSMath {
 
     function sellAllAmountBuyEthAndMigrateSai(
         address otc,
+        address daiToken,
         uint daiAmt,
         address wethToken,
         uint minBuyAmt,
         address scdMcdMigration
     ) public returns (uint wethAmt) {
-        address daiToken = getDaiToken(scdMcdMigration);
         swapSaiToDai(scdMcdMigration, daiAmt);
 
         if (GemLike(daiToken).allowance(address(this), otc) < daiAmt) {
@@ -42,10 +42,10 @@ contract OasisDirectMigrateProxyActions is DSMath {
         address otc,
         address buyToken,
         uint buyAmt,
+        address daiToken,
         uint maxDaiAmt,
         address scdMcdMigration
     ) public returns (uint payAmt) {
-        address daiToken = getDaiToken(scdMcdMigration);
         uint daiAmtNow = OtcLike(otc).getPayAmount(daiToken, buyToken, buyAmt);
         require(daiAmtNow <= maxDaiAmt, "");
 
@@ -65,10 +65,10 @@ contract OasisDirectMigrateProxyActions is DSMath {
         address otc,
         address wethToken,
         uint wethAmt,
+        address daiToken,
         uint maxDaiAmt,
         address scdMcdMigration
     ) public returns (uint payAmt) {
-        address daiToken = getDaiToken(scdMcdMigration);
         uint daiAmtNow = OtcLike(otc).getPayAmount(daiToken, wethToken, wethAmt);
         require(daiAmtNow <= maxDaiAmt, "");
 
@@ -82,10 +82,6 @@ contract OasisDirectMigrateProxyActions is DSMath {
     }
 
     // private methods
-    function getDaiToken(address scdMcdMigration) private view returns (address dai) {
-        dai = address(ScdMcdMigrationLike(scdMcdMigration).daiJoin().dai());
-    }
-
     function swapSaiToDai(address scdMcdMigration, uint wad) private {
         GemLike sai = ScdMcdMigrationLike(scdMcdMigration).tub().sai();
         sai.transferFrom(msg.sender, address(this), wad);

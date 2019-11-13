@@ -235,6 +235,7 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
 
         oasisDirectMigrateProxyActions.sellAllAmountAndMigrateSai(
             address(mockOTC),
+            address(dai),
             amount,
             address(dgd),
             minAmount,
@@ -273,6 +274,7 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
         
         oasisDirectMigrateProxyActions.sellAllAmountBuyEthAndMigrateSai(
             address(mockOTC),
+            address(dai),
             amount,
             address(weth),
             minAmount,
@@ -311,6 +313,7 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
             address(mockOTC),
             address(dgd),
             amount,
+            address(dai),
             maxAmount,
             address(migration)
         );
@@ -348,6 +351,7 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
             address(mockOTC),
             address(weth),
             amount,
+            address(dai),
             maxAmount,
             address(migration)
         );
