@@ -89,8 +89,10 @@ contract MockOTC {
     }
 
     function getPayAmount(address _payToken, address _buyToken, uint _buyAmt) public view returns (uint) {
-        _payToken;_buyToken;_buyAmt;
-        // @todo missing asserts
+        require(payToken == _payToken);
+        require(buyToken == _buyToken);
+        require(buyAmt == _buyAmt);
+        
         return minBuyAmt;
     }
 }
