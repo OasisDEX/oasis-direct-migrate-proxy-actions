@@ -1,4 +1,4 @@
-pragma solidity 0.5.11;
+pragma solidity 0.5.12;
 
 import "ds-token/token.sol";
 import "ds-math/math.sol";
@@ -42,7 +42,7 @@ contract TokenInterface {
 contract OtcInterface {
     function sellAllAmount(address, uint, address, uint) public returns (uint);
     function buyAllAmount(address, uint, address, uint) public returns (uint);
-    function getPayAmount(address, address, uint) public returns (uint);
+    function getPayAmount(address, address, uint) public view returns (uint);
 }
 
 contract MockOTC {
@@ -88,8 +88,11 @@ contract MockOTC {
         return _maxPayAmt;
     }
 
-    function getPayAmount(address payToken, address buyToken, uint buyAmt) public returns (uint) {
-        // @todo missing asserts
+    function getPayAmount(address _payToken, address _buyToken, uint _buyAmt) public view returns (uint) {
+        require(payToken == _payToken);
+        require(buyToken == _buyToken);
+        require(buyAmt == _buyAmt);
+        
         return minBuyAmt;
     }
 }
@@ -229,9 +232,9 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
 
         assertEq(sai.balanceOf(address(this)), amount);
         assertEq(dai.balanceOf(address(this)), 0);
-        
+
         sai.approve(address(oasisDirectMigrateProxyActions), amount);
-        
+
         oasisDirectMigrateProxyActions.sellAllAmountAndMigrateSai(
             address(mockOTC),
             address(dai),
@@ -305,9 +308,9 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
 
         assertEq(sai.balanceOf(address(this)), maxAmount);
         assertEq(dai.balanceOf(address(this)), 0);
-        
+
         sai.approve(address(oasisDirectMigrateProxyActions), maxAmount);
-        
+
         oasisDirectMigrateProxyActions.buyAllAmountAndMigrateSai(
             address(mockOTC),
             address(dgd),
@@ -343,9 +346,9 @@ contract OasisDirectMigrateProxyActionsTest is DssDeployTestBase, DSMath {
         uint initialBalance = address(this).balance;
 
         assertEq(sai.balanceOf(address(this)), maxAmount);
-        
+
         sai.approve(address(oasisDirectMigrateProxyActions), maxAmount);
-        
+
         oasisDirectMigrateProxyActions.buyAllAmountBuyEthAndMigrateSai(
             address(mockOTC),
             address(weth),
