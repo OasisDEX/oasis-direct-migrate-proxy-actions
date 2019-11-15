@@ -16,6 +16,7 @@ contract SaiTubLike {
 
 contract JoinLike {
     function dai() public view returns (GemLike);
+    function gem() public view returns (GemLike);
 }
 
 contract OtcLike {
@@ -26,6 +27,7 @@ contract OtcLike {
 
 contract ScdMcdMigrationLike {
     function daiJoin() public view returns (JoinLike);
+    function saiJoin() public view returns (JoinLike);
     function tub() public view returns (SaiTubLike);
     function swapSaiToDai(uint) public;
 }

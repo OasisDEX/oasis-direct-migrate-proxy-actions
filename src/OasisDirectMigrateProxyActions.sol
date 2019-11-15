@@ -83,7 +83,7 @@ contract OasisDirectMigrateProxyActions is DSMath {
 
     // private methods
     function swapSaiToDai(address scdMcdMigration, uint wad) private {
-        GemLike sai = ScdMcdMigrationLike(scdMcdMigration).tub().sai();
+        GemLike sai = JoinLike(address(ScdMcdMigrationLike(scdMcdMigration).saiJoin())).gem();
         sai.transferFrom(msg.sender, address(this), wad);
         if (sai.allowance(address(this), scdMcdMigration) < wad) {
             sai.approve(scdMcdMigration, wad);
